@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Distributed Systems Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #111927;
+            --accent-color: #9fef00;
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --node-color: #1a365d;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --error-color: #f56565;
+            --info-color: #4299e1;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(159, 239, 0, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(159, 239, 0, 0.05) 0%, transparent 20%);
+        }
+        
+        header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(159, 239, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(17, 25, 39, 0.9);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .logo {
+            color: var(--accent-color);
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .logo i {
+            font-size: 1.8rem;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .tab {
+            padding: 0.7rem 1.2rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tab:hover {
+            background-color: rgba(159, 239, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .tab.active {
+            background-color: var(--accent-color);
+            color: var(--bg-primary);
+            box-shadow: 0 4px 12px rgba(159, 239, 0, 0.3);
+        }
+        
+        main {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        h1, h2, h3 {
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+        }
+        
+        .description {
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+        
+        .simulation-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        .simulation-area {
+            background-color: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            padding: 1.5rem;
+            min-height: 500px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(159, 239, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Ensure simulation areas have proper dimensions even when hidden */
+        #kv-simulation,
+        #clock-simulation,
+        #message-simulation,
+        #fault-simulation {
+            width: 100%;
+            height: 500px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            padding: 1rem;
+            background-color: rgba(17, 25, 39, 0.7);
+            border-radius: 8px;
+            border: 1px solid rgba(159, 239, 0, 0.1);
+        }
+        
+        button, select, input {
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--accent-color);
+            color: var(--text-primary);
+            padding: 0.7rem 1rem;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        
+        button {
+            background-color: var(--accent-color);
+            color: var(--bg-primary);
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        button:hover {
+            background-color: #7acc00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(159, 239, 0, 0.3);
+        }
+        
+        button:disabled {
+            background-color: #4a5568;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        select, input {
+            min-width: 150px;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(159, 239, 0, 0.5);
+        }
+        
+        .node {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--node-color);
+            border: 3px solid var(--accent-color);
+            transition: all 0.5s;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+            animation: pulse 3s infinite;
+            cursor: pointer;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(159, 239, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(159, 239, 0, 0); }
+        }
+        
+        .node-label {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+        }
+        
+        .node-value {
+            font-size: 0.8rem;
+            text-align: center;
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .node.active {
+            animation: nodeActive 1s;
+        }
+        
+        @keyframes nodeActive {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .node.failed {
+            border-color: var(--error-color);
+            animation: none;
+            background-color: rgba(245, 101, 101, 0.2);
+        }
+        
+        .node.backup {
+            border-color: var(--warning-color);
+        }
+        
+        .node.load-balancer {
+            border-color: var(--info-color);
+            width: 120px;
+            height: 120px;
+        }
+        
+        .message {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--bg-primary);
+            z-index: 20;
+            transition: all 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            box-shadow: 0 4px 12px rgba(159, 239, 0, 0.5);
+        }
+        
+        .message.pulse {
+            animation: messagePulse 0.5s;
+        }
+        
+        @keyframes messagePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        
+        .log-container {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            border: 1px solid rgba(159, 239, 0, 0.1);
+        }
+        
+        .log-entry {
+            margin-bottom: 0.7rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            animation: logEntry 0.3s;
+        }
+        
+        @keyframes logEntry {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .timestamp {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        
+        .kv-pair {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+        
+        .clock-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .clock-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin: 0.5rem 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .event-log {
+            margin-top: 1rem;
+        }
+        
+        .event {
+            padding: 0.7rem;
+            margin-bottom: 0.7rem;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            border-left: 4px solid var(--accent-color);
+            animation: eventEntry 0.5s;
+        }
+        
+        @keyframes eventEntry {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .connection {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            transform-origin: 0 0;
+            z-index: 1;
+        }
+        
+        .connection.active {
+            animation: connectionPulse 1.5s;
+        }
+        
+        @keyframes connectionPulse {
+            0% { background: linear-gradient(90deg, transparent, var(--accent-color), transparent); }
+            50% { background: linear-gradient(90deg, transparent, #7acc00, transparent); }
+            100% { background: linear-gradient(90deg, transparent, var(--accent-color), transparent); }
+        }
+        
+        .message-queue {
+            margin-top: 1rem;
+        }
+        
+        .queue-item {
+            padding: 0.7rem;
+            margin-bottom: 0.7rem;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            animation: queueEntry 0.5s;
+            border-left: 4px solid var(--info-color);
+        }
+        
+        @keyframes queueEntry {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+            animation: statusPulse 2s infinite;
+        }
+        
+        @keyframes statusPulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
+        .online {
+            background-color: var(--success-color);
+        }
+        
+        .offline {
+            background-color: var(--error-color);
+        }
+        
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(159, 239, 0, 0.3);
+            transform: scale(0);
+            animation: ripple 1s linear;
+            z-index: 2;
+        }
+        
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        .visualization-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .stat-card {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 150px;
+            border: 1px solid rgba(159, 239, 0, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-top: 1px solid rgba(159, 239, 0, 0.2);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .nav-tabs {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .simulation-area {
+                min-height: 400px;
+            }
+            
+            .node {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .node.load-balancer {
+                width: 100px;
+                height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <i class="fas fa-network-wired"></i>
+            <span>DISTRIBUTED SYSTEMS SIMULATOR</span>
+        </div>
+        <div class="nav-tabs">
+            <div class="tab active" data-tab="kv-store">
+                <i class="fas fa-database"></i>
+                Key-Value Store
+            </div>
+            <div class="tab" data-tab="clocks">
+                <i class="fas fa-clock"></i>
+                Clock Synchronization
+            </div>
+            <div class="tab" data-tab="messaging">
+                <i class="fas fa-comments"></i>
+                Message Passing
+            </div>
+            <div class="tab" data-tab="fault-tolerance">
+                <i class="fas fa-shield-alt"></i>
+                Fault Tolerance
+            </div>
+        </div>
+    </header>
+    
+    <main>
+        <div class="tab-content active" id="kv-store">
+            <h1><i class="fas fa-database"></i> Distributed Key-Value Store</h1>
+            <p class="description">
+                This simulation demonstrates a distributed key-value store with replication and consistency trade-offs.
+                Write values to nodes and observe how they propagate (or don't) based on the selected consistency model.
+                Watch the data flow animations to visualize the replication process.
+            </p>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="kv-writes">0</div>
+                    <div class="stat-label">Total Writes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="kv-reads">0</div>
+                    <div class="stat-label">Total Reads</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="kv-replicas">3</div>
+                    <div class="stat-label">Active Replicas</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <select id="consistency-model">
+                    <option value="strong">Strong Consistency</option>
+                    <option value="eventual">Eventual Consistency</option>
+                    <option value="causal">Causal Consistency</option>
+                </select>
+                <input type="text" id="key-input" placeholder="Key">
+                <input type="text" id="value-input" placeholder="Value">
+                <button id="write-btn">
+                    <i class="fas fa-pen"></i> Write
+                </button>
+                <button id="read-btn">
+                    <i class="fas fa-search"></i> Read
+                </button>
+                <button id="reset-kv">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+            
+            <div class="visualization-controls">
+                <div class="speed-control">
+                    <label for="animation-speed">Animation Speed:</label>
+                    <input type="range" id="animation-speed" min="0.5" max="3" step="0.5" value="1">
+                </div>
+            </div>
+            
+            <div class="simulation-container">
+                <div class="simulation-area" id="kv-simulation">
+                    </div>
+                
+                <div>
+                    <h3><i class="fas fa-list"></i> Operation Log</h3>
+                    <div class="log-container" id="kv-log"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="clocks">
+            <h1><i class="fas fa-clock"></i> Clock Synchronization</h1>
+            <p class="description">
+                This simulation demonstrates Lamport timestamps and vector clocks for ordering events in distributed systems.
+                Send messages between nodes and observe how their logical clocks advance with visual clock animations.
+            </p>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="clock-events">0</div>
+                    <div class="stat-label">Total Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="clock-messages">0</div>
+                    <div class="stat-label">Messages Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Active Nodes</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <select id="clock-type">
+                    <option value="lamport">Lamport Timestamps</option>
+                    <option value="vector">Vector Clocks</option>
+                </select>
+                <button id="send-event">
+                    <i class="fas fa-paper-plane"></i> Send Event
+                </button>
+                <button id="local-event">
+                    <i class="fas fa-cog"></i> Local Event
+                </button>
+                <button id="reset-clocks">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+            
+            <div class="simulation-container">
+                <div class="simulation-area" id="clock-simulation">
+                    </div>
+                
+                <div>
+                    <h3><i class="fas fa-history"></i> Event History</h3>
+                    <div class="log-container" id="clock-log"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="messaging">
+            <h1><i class="fas fa-comments"></i> Message Passing Framework</h1>
+            <p class="description">
+                This simulation demonstrates message passing between distributed nodes using different patterns.
+                Nodes can send messages directly or via a message broker with animated message flows.
+            </p>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="message-count">0</div>
+                    <div class="stat-label">Messages Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="online-nodes">4</div>
+                    <div class="stat-label">Online Nodes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="queue-size">0</div>
+                    <div class="stat-label">Queue Size</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <select id="message-pattern">
+                    <option value="direct">Direct Messaging</option>
+                    <option value="pubsub">Publish-Subscribe</option>
+                    <option value="request-reply">Request-Reply</option>
+                </select>
+                <input type="text" id="message-content" placeholder="Message content">
+                <button id="send-message">
+                    <i class="fas fa-paper-plane"></i> Send Message
+                </button>
+                <button id="toggle-node">
+                    <i class="fas fa-power-off"></i> Toggle Node
+                </button>
+                <button id="reset-messaging">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+            
+            <div class="simulation-container">
+                <div class="simulation-area" id="message-simulation">
+                    </div>
+                
+                <div class="message-queue">
+                    <h3><i class="fas fa-inbox"></i> Message Queue</h3>
+                    <div class="log-container" id="message-log"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="fault-tolerance">
+            <h1><i class="fas fa-shield-alt"></i> Fault Tolerance & Load Balancing</h1>
+            <p class="description">
+                This simulation demonstrates fault tolerance in a distributed system with a load balancer and backup nodes.
+                The load balancer distributes requests to primary nodes. If a node fails, requests are redirected to backup nodes.
+                Click on a failed node to restore it. If all backups fail, the system becomes unavailable.
+            </p>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="ft-requests">0</div>
+                    <div class="stat-label">Total Requests</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ft-failures">0</div>
+                    <div class="stat-label">Node Failures</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ft-active">3</div>
+                    <div class="stat-label">Active Nodes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ft-backups">2</div>
+                    <div class="stat-label">Backup Nodes</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="send-request">
+                    <i class="fas fa-exchange-alt"></i> Send Request
+                </button>
+                <button id="auto-request">
+                    <i class="fas fa-play"></i> Auto Request
+                </button>
+                <button id="stop-auto">
+                    <i class="fas fa-stop"></i> Stop Auto
+                </button>
+                <button id="fail-random">
+                    <i class="fas fa-bolt"></i> Fail Random Node
+                </button>
+                <button id="reset-fault">
+                    <i class="fas fa-redo"></i> Reset
+                </button>
+            </div>
+            
+            <div class="simulation-container">
+                <div class="simulation-area" id="fault-simulation">
+                    </div>
+                
+                <div>
+                    <h3><i class="fas fa-list"></i> System Log</h3>
+                    <div class="log-container" id="fault-log"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Djillali liabes university.</p>
+        <p>Distributed Systems Learning Simulator | Enhanced with Animations <a href="https://cve-1803-96.github.io/" style="text-decoration: none; color: #7acc00;">cve-180396</a></p>
+    </footer>
+
+    <script>
+        // Enhanced global state with animation tracking
+        const state = {
+            activeTab: 'kv-store',
+            nodes: [],
+            connections: [],
+            kvStore: {},
+            clocks: {},
+            messageQueue: [],
+            stats: {
+                kvWrites: 0,
+                kvReads: 0,
+                clockEvents: 0,
+                clockMessages: 0,
+                messageCount: 0,
+                ftRequests: 0,
+                ftFailures: 0
+            },
+            animationSpeed: 1,
+            // Fault tolerance state
+            ft: {
+                primaryNodes: [true, true, true], // Status of primary nodes
+                backupNodes: [true, true], // Status of backup nodes
+                autoRequestInterval: null,
+                requestCounter: 0
+            },
+            // --- OPTIMIZATION: Track initialized tabs ---
+            initialized: {
+                'kv-store': false,
+                'clocks': false,
+                'messaging': false,
+                'fault-tolerance': false
+            }
+        };
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs();
+            // --- Initialize the first tab ---
+            initializeKVStore();
+            state.initialized['kv-store'] = true;
+
+            initializeAnimationControls();
+        });
+
+        // Tab navigation
+        function initializeTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    if (state.activeTab === tabId) return; // Don't re-initialize if clicking the same tab
+
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show corresponding content
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    state.activeTab = tabId;
+                    
+                    // --- OPTIMIZATION: Initialize the simulation for the active tab only if not already initialized ---
+                    setTimeout(() => {
+                        if (!state.initialized[tabId]) {
+                            if (tabId === 'kv-store') initializeKVStore();
+                            else if (tabId === 'clocks') initializeClocks();
+                            else if (tabId === 'messaging') initializeMessaging();
+                            else if (tabId === 'fault-tolerance') initializeFaultTolerance();
+                            state.initialized[tabId] = true;
+                        }
+                    }, 50);
+                    
+                    createRippleEffect(this);
+                });
+            });
+        }
+
+        // Animation speed control
+        function initializeAnimationControls() {
+            const speedControl = document.getElementById('animation-speed');
+            if (speedControl) {
+                speedControl.addEventListener('input', function() {
+                    state.animationSpeed = parseFloat(this.value);
+                });
+            }
+        }
+
+        // Create ripple effect animation
+        function createRippleEffect(element) {
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            const rect = element.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = `${size}px`;
+            ripple.style.left = '0';
+            ripple.style.top = '0';
+            
+            element.style.position = 'relative';
+            element.style.overflow = 'hidden';
+            element.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 1000);
+        }
+
+        // --- NEW: Generic Packet Animation Engine ---
+        function animatePacket(type, fromId, toId, options = {}) {
+            const { content = '', duration = 1200, onArrival = () => {} } = options;
+
+            const fromNodeEl = document.getElementById(`node-${type}-${fromId}`);
+            const toNodeEl = document.getElementById(`node-${type}-${toId}`);
+            const container = document.getElementById(`${type}-simulation`);
+
+            if (!fromNodeEl || !toNodeEl || !container) return;
+
+            const fromRect = fromNodeEl.getBoundingClientRect();
+            const toRect = toNodeEl.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            // Calculate start and end positions relative to the container
+            const startX = fromRect.left + fromRect.width / 2 - containerRect.left;
+            const startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+            const endX = toRect.left + toRect.width / 2 - containerRect.left;
+            const endY = toRect.top + toRect.height / 2 - containerRect.top;
+
+            const packet = document.createElement('div');
+            packet.className = 'message'; // Reuse message styling for the packet
+            packet.textContent = content;
+            packet.style.position = 'absolute';
+            // Adjust for packet size (40x40px) to center it on the node's center
+            packet.style.left = `${startX - 20}px`;
+            packet.style.top = `${startY - 20}px`;
+            packet.style.zIndex = '50';
+
+            container.appendChild(packet);
+
+            const travelTime = duration / state.animationSpeed;
+
+            // Animate movement using CSS transitions
+            setTimeout(() => {
+                packet.style.transition = `all ${travelTime / 1000}s ease-in-out`;
+                packet.style.left = `${endX - 20}px`;
+                packet.style.top = `${endY - 20}px`;
+            }, 50); // Small delay to ensure the transition property is applied
+
+            // After animation, trigger arrival logic and remove the packet
+            setTimeout(() => {
+                animateNodeActivation(type, toId);
+                onArrival();
+                packet.remove();
+            }, travelTime + 50);
+        }
+
+
+        // Key-Value Store Simulation
+        function initializeKVStore() {
+            const kvSimulation = document.getElementById('kv-simulation');
+            createNodes(kvSimulation, 3, 'kv');
+            
+            document.getElementById('write-btn').addEventListener('click', handleWrite);
+            document.getElementById('read-btn').addEventListener('click', handleRead);
+            document.getElementById('reset-kv').addEventListener('click', resetKVStore);
+            
+            logToKV('Key-Value store initialized with 3 nodes');
+            updateStats();
+        }
+
+        function createNodes(container, count, type) {
+            container.innerHTML = '';
+            state.nodes = state.nodes.filter(n => n.type !== type);
+            state.connections = state.connections.filter(c => !c.type || c.type !== type);
+            
+            const containerRect = container.getBoundingClientRect();
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+            const radius = Math.min(centerX, centerY) * 0.7;
+            
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * 2 * Math.PI - (Math.PI / 2); // Start from top
+                const x = centerX + radius * Math.cos(angle) - 50;
+                const y = centerY + radius * Math.sin(angle) - 50;
+                
+                const node = document.createElement('div');
+                node.className = 'node';
+                node.id = `node-${type}-${i}`;
+                node.style.left = `${x}px`;
+                node.style.top = `${y}px`;
+                
+                node.innerHTML = `
+                    <div class="node-label">Node ${i}</div>
+                    <div class="node-value" id="node-value-${type}-${i}">${type === 'kv' ? 'Empty' : (type === 'clock' ? '0' : 'Ready')}</div>
+                `;
+                container.appendChild(node);
+                
+                state.nodes.push({ id: `node-${type}-${i}`, x: x + 50, y: y + 50, type: type, index: i });
+            }
+            
+            if (count > 1) {
+                for (let i = 0; i < count; i++) {
+                    for (let j = i + 1; j < count; j++) {
+                        createConnection(container, state.nodes.find(n => n.type === type && n.index === i), state.nodes.find(n => n.type === type && n.index === j), type);
+                    }
+                }
+            }
+        }
+
+        function createConnection(container, node1, node2, type) {
+            if (!node1 || !node2) return;
+            
+            const dx = node2.x - node1.x;
+            const dy = node2.y - node1.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            
+            const connection = document.createElement('div');
+            connection.className = 'connection';
+            connection.style.width = `${length}px`;
+            connection.style.left = `${node1.x}px`;
+            connection.style.top = `${node1.y}px`;
+            connection.style.transform = `rotate(${angle}deg)`;
+            connection.type = type;
+            
+            container.appendChild(connection);
+            state.connections.push(connection);
+        }
+
+        function handleWrite() {
+            const key = document.getElementById('key-input').value;
+            const value = document.getElementById('value-input').value;
+            const consistency = document.getElementById('consistency-model').value;
+            
+            if (!key || !value) {
+                alert('Please enter both key and value');
+                return;
+            }
+            
+            state.stats.kvWrites++;
+            updateStats();
+            
+            logToKV(`Writing key="${key}" with value="${value}" (${consistency} consistency)`);
+            
+            // Update the first node immediately and animate it
+            updateNodeValue('kv', 0, `${key}=${value}`);
+            animateNodeActivation('kv', 0);
+            
+            const numNodes = state.nodes.filter(n => n.type === 'kv').length;
+
+            if (consistency === 'strong') {
+                logToKV('Strong consistency: Replicating to all nodes immediately');
+                for (let i = 1; i < numNodes; i++) {
+                    animatePacket('kv', 0, i, {
+                        content: 'W',
+                        onArrival: () => {
+                            updateNodeValue('kv', i, `${key}=${value}`);
+                            logToKV(`Node ${i} updated.`);
+                        }
+                    });
+                }
+            } else if (consistency === 'eventual') {
+                logToKV('Eventual consistency: Replicating with delays');
+                for (let i = 1; i < numNodes; i++) {
+                    setTimeout(() => {
+                        animatePacket('kv', 0, i, {
+                            content: 'W',
+                            onArrival: () => {
+                                updateNodeValue('kv', i, `${key}=${value}`);
+                                logToKV(`Node ${i} eventually updated.`);
+                            }
+                        });
+                    }, (Math.random() * 1500 + 500) / state.animationSpeed);
+                }
+            } else if (consistency === 'causal') {
+                logToKV('Causal consistency: Replicating in order');
+                 for (let i = 1; i < numNodes; i++) {
+                    setTimeout(() => {
+                        animatePacket('kv', 0, i, {
+                            content: 'W',
+                            onArrival: () => {
+                                updateNodeValue('kv', i, `${key}=${value}`);
+                                logToKV(`Node ${i} updated in causal order.`);
+                            }
+                        });
+                    }, i * 1500 / state.animationSpeed);
+                }
+            }
+            
+            state.kvStore[key] = value;
+            document.getElementById('key-input').value = '';
+            document.getElementById('value-input').value = '';
+        }
+
+        function handleRead() {
+            const key = document.getElementById('key-input').value;
+            if (!key) {
+                alert('Please enter a key to read');
+                return;
+            }
+            state.stats.kvReads++;
+            updateStats();
+            
+            const value = state.kvStore[key];
+            if (value) {
+                logToKV(`Reading key="${key}" -> value="${value}"`);
+                for (let i = 0; i < state.nodes.filter(n => n.type === 'kv').length; i++) {
+                    animateNodeActivation('kv', i);
+                }
+            } else {
+                logToKV(`Key "${key}" not found in store`);
+            }
+        }
+
+        function resetKVStore() {
+            state.kvStore = {};
+            state.stats.kvWrites = 0;
+            state.stats.kvReads = 0;
+            
+            for (let i = 0; i < state.nodes.filter(n => n.type === 'kv').length; i++) {
+                updateNodeValue('kv', i, 'Empty');
+            }
+            
+            logToKV('Key-Value store reset');
+            updateStats();
+        }
+
+        function updateNodeValue(type, index, value) {
+            const nodeValue = document.getElementById(`node-value-${type}-${index}`);
+            if (nodeValue) {
+                nodeValue.textContent = value;
+            }
+        }
+
+        function animateNodeActivation(type, index) {
+            const node = document.getElementById(`node-${type}-${index}`);
+            if (node) {
+                node.classList.add('active');
+                setTimeout(() => {
+                    node.classList.remove('active');
+                }, 1000 / state.animationSpeed);
+            }
+        }
+
+        function logToKV(message) {
+            const log = document.getElementById('kv-log');
+            if (!log) return;
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div class="log-entry"><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateStats() {
+            const ids = ['kv-writes', 'kv-reads', 'clock-events', 'clock-messages', 'message-count', 'ft-requests', 'ft-failures'];
+            const keys = ['kvWrites', 'kvReads', 'clockEvents', 'clockMessages', 'messageCount', 'ftRequests', 'ftFailures'];
+            
+            ids.forEach((id, index) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = state.stats[keys[index]];
+            });
+        }
+
+        // Clock Synchronization Simulation
+        function initializeClocks() {
+            createNodes(document.getElementById('clock-simulation'), 3, 'clock');
+            
+            state.clocks = { lamport: [0, 0, 0], vector: [[0, 0, 0], [0, 0, 0], [0, 0, 0]] };
+            
+            document.getElementById('send-event').addEventListener('click', sendClockEvent);
+            document.getElementById('local-event').addEventListener('click', createLocalEvent);
+            document.getElementById('reset-clocks').addEventListener('click', resetClocks);
+            
+            updateClockDisplays();
+            logToClock('Clock synchronization initialized');
+        }
+
+        function sendClockEvent() {
+            const clockType = document.getElementById('clock-type').value;
+            state.stats.clockMessages++;
+            updateStats();
+            
+            const sender = Math.floor(Math.random() * 3);
+            let receiver;
+            do { receiver = Math.floor(Math.random() * 3); } while (receiver === sender);
+            
+            logToClock(`Node ${sender} sending message to Node ${receiver}`);
+            
+            if (clockType === 'lamport') {
+                state.clocks.lamport[sender]++;
+                createMessage('clock', sender, receiver, `L: ${state.clocks.lamport[sender]}`);
+                
+                setTimeout(() => {
+                    state.clocks.lamport[receiver] = Math.max(state.clocks.lamport[receiver], state.clocks.lamport[sender]) + 1;
+                    updateClockDisplays();
+                    logToClock(`Node ${receiver} received, Lamport timestamp is now ${state.clocks.lamport[receiver]}`);
+                }, 1500 / state.animationSpeed);
+            } else if (clockType === 'vector') {
+                state.clocks.vector[sender][sender]++;
+                createMessage('clock', sender, receiver, `V`);
+                
+                setTimeout(() => {
+                    for (let i = 0; i < 3; i++) {
+                        state.clocks.vector[receiver][i] = Math.max(state.clocks.vector[receiver][i], state.clocks.vector[sender][i]);
+                    }
+                    state.clocks.vector[receiver][receiver]++;
+                    updateClockDisplays();
+                    logToClock(`Node ${receiver} received, vector clock is now [${state.clocks.vector[receiver]}]`);
+                }, 1500 / state.animationSpeed);
+            }
+            updateClockDisplays();
+        }
+
+        function createLocalEvent() {
+            const clockType = document.getElementById('clock-type').value;
+            const node = Math.floor(Math.random() * 3);
+            state.stats.clockEvents++;
+            updateStats();
+            
+            if (clockType === 'lamport') {
+                state.clocks.lamport[node]++;
+                logToClock(`Node ${node} local event, Lamport timestamp: ${state.clocks.lamport[node]}`);
+            } else {
+                state.clocks.vector[node][node]++;
+                logToClock(`Node ${node} local event, Vector clock: [${state.clocks.vector[node]}]`);
+            }
+            updateClockDisplays();
+            animateNodeActivation('clock', node);
+        }
+
+        function resetClocks() {
+            state.clocks = { lamport: [0, 0, 0], vector: [[0, 0, 0], [0, 0, 0], [0, 0, 0]] };
+            state.stats.clockEvents = 0;
+            state.stats.clockMessages = 0;
+            updateClockDisplays();
+            logToClock('Clocks reset');
+            updateStats();
+        }
+
+        function updateClockDisplays() {
+            const clockType = document.getElementById('clock-type')?.value || 'lamport';
+            for (let i = 0; i < 3; i++) {
+                const value = (clockType === 'lamport') ? state.clocks.lamport[i] : `[${state.clocks.vector[i].join(',')}]`;
+                updateNodeValue('clock', i, value.toString());
+            }
+        }
+
+        function logToClock(message) {
+            const log = document.getElementById('clock-log');
+            if (!log) return;
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div class="log-entry"><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Message Passing Simulation
+        function initializeMessaging() {
+            createNodes(document.getElementById('message-simulation'), 4, 'message');
+            
+            document.getElementById('send-message').addEventListener('click', sendMessage);
+            document.getElementById('toggle-node').addEventListener('click', toggleNode);
+            document.getElementById('reset-messaging').addEventListener('click', resetMessaging);
+            
+            logToMessage('Message passing system initialized');
+        }
+
+        function sendMessage() {
+            const pattern = document.getElementById('message-pattern').value;
+            const content = document.getElementById('message-content').value;
+            if (!content) { alert('Please enter message content'); return; }
+            
+            state.stats.messageCount++;
+            updateStats();
+            
+            if (pattern === 'direct') {
+                const sender = Math.floor(Math.random() * 4);
+                let receiver;
+                do { receiver = Math.floor(Math.random() * 4); } while (receiver === sender);
+                logToMessage(`Node ${sender} sends direct message to Node ${receiver}`);
+                createMessage('message', sender, receiver, content.substring(0, 5));
+            } else if (pattern === 'pubsub') {
+                const sender = Math.floor(Math.random() * 4);
+                logToMessage(`Node ${sender} publishes message to all nodes`);
+                for (let i = 0; i < 4; i++) {
+                    if (i !== sender) createMessage('message', sender, i, content.substring(0, 5));
+                }
+            } else if (pattern === 'request-reply') {
+                const requester = Math.floor(Math.random() * 4);
+                let responder;
+                do { responder = Math.floor(Math.random() * 4); } while (responder === requester);
+                
+                logToMessage(`Node ${requester} sends request to Node ${responder}`);
+                createMessage('message', requester, responder, `REQ`);
+                
+                setTimeout(() => {
+                    logToMessage(`Node ${responder} replies to Node ${requester}`);
+                    createMessage('message', responder, requester, `RES`);
+                }, 1500 / state.animationSpeed);
+            }
+            document.getElementById('message-content').value = '';
+        }
+
+        function toggleNode() {
+            const nodeIndex = Math.floor(Math.random() * 4);
+            const node = document.getElementById(`node-message-${nodeIndex}`);
+            
+            if (node.classList.contains('failed')) {
+                node.classList.remove('failed');
+                logToMessage(`Node ${nodeIndex} is now online`);
+                state.stats.onlineNodes++;
+            } else {
+                node.classList.add('failed');
+                logToMessage(`Node ${nodeIndex} is now offline`);
+                state.stats.onlineNodes--;
+            }
+            document.getElementById('online-nodes').textContent = state.stats.onlineNodes;
+        }
+
+        function resetMessaging() {
+            state.stats.messageCount = 0;
+            state.stats.onlineNodes = 4;
+            
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`node-message-${i}`).classList.remove('failed');
+                updateNodeValue('message', i, 'Ready');
+            }
+            
+            logToMessage('Message system reset');
+            updateStats();
+            document.getElementById('online-nodes').textContent = state.stats.onlineNodes;
+        }
+
+        function logToMessage(message) {
+            const log = document.getElementById('message-log');
+            if (!log) return;
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div class="log-entry"><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function createMessage(type, fromIndex, toIndex, content) {
+            animatePacket(type, fromIndex, toIndex, { content: content, duration: 700 });
+        }
+        
+        // Fault Tolerance Simulation
+        function initializeFaultTolerance() {
+            const container = document.getElementById('fault-simulation');
+            container.innerHTML = '';
+            state.nodes = state.nodes.filter(n => n.type !== 'fault');
+            
+            const containerRect = container.getBoundingClientRect();
+            const width = containerRect.width;
+            const height = containerRect.height;
+            
+            // Create load balancer
+            const lbX = width / 2 - 60, lbY = height * 0.45 - 60;
+            container.innerHTML += `
+                <div class="node load-balancer" id="node-fault-lb" style="left: ${lbX}px; top: ${lbY}px;">
+                    <div class="node-label">Load Balancer</div>
+                    <div class="node-value" id="node-value-fault-lb">Active</div>
+                </div>`;
+            state.nodes.push({ id: 'node-fault-lb', x: lbX + 60, y: lbY + 60, type: 'fault', index: 'lb' });
+            
+            // Create primary nodes
+            for (let i = 0; i < 3; i++) {
+                const pX = width * 0.2 + i * (width * 0.6 / 2) - 50;
+                const pY = height * 0.1;
+                container.innerHTML += `
+                    <div class="node" id="node-fault-primary-${i}" style="left: ${pX}px; top: ${pY}px;">
+                        <div class="node-label">Primary ${i}</div>
+                        <div class="node-value" id="node-value-fault-primary-${i}">Active</div>
+                    </div>`;
+                state.nodes.push({ id: `node-fault-primary-${i}`, x: pX + 50, y: pY + 50, type: 'fault', index: `primary-${i}` });
+            }
+            
+            // Create backup nodes
+            for (let i = 0; i < 2; i++) {
+                const bX = width * 0.25 + i * (width * 0.5) - 50;
+                const bY = height * 0.75;
+                container.innerHTML += `
+                    <div class="node backup" id="node-fault-backup-${i}" style="left: ${bX}px; top: ${bY}px;">
+                        <div class="node-label">Backup ${i}</div>
+                        <div class="node-value" id="node-value-fault-backup-${i}">Standby</div>
+                    </div>`;
+                state.nodes.push({ id: `node-fault-backup-${i}`, x: bX + 50, y: bY + 50, type: 'fault', index: `backup-${i}` });
+            }
+
+            // Add event listeners
+            document.getElementById('send-request').addEventListener('click', sendFaultRequest);
+            document.getElementById('auto-request').addEventListener('click', startAutoRequest);
+            document.getElementById('stop-auto').addEventListener('click', stopAutoRequest);
+            document.getElementById('fail-random').addEventListener('click', failRandomNode);
+            document.getElementById('reset-fault').addEventListener('click', resetFaultTolerance);
+            
+            document.querySelectorAll('#fault-simulation .node').forEach(node => {
+                node.addEventListener('click', function() {
+                    if (this.classList.contains('failed')) {
+                        this.classList.remove('failed');
+                        const isPrimary = this.id.includes('primary');
+                        const index = parseInt(this.id.split('-').pop());
+                        
+                        if (isPrimary) {
+                            state.ft.primaryNodes[index] = true;
+                            updateNodeValue('fault', `primary-${index}`, 'Active');
+                            logToFault(`Primary node ${index} restored by click.`);
+
+                            // --- NEW FAILBACK LOGIC ---
+                            // Check if a backup node was promoted and needs to be returned to standby.
+                            for (let i = 0; i < state.ft.backupNodes.length; i++) {
+                                const backupNodeEl = document.getElementById(`node-fault-backup-${i}`);
+                                // An active backup is one that lost its 'backup' class and is not failed.
+                                if (backupNodeEl && !backupNodeEl.classList.contains('backup') && !backupNodeEl.classList.contains('failed')) {
+                                    logToFault(`Primary node is back. Returning Backup ${i} to standby role.`);
+                                    backupNodeEl.classList.add('backup'); // Return orange border
+                                    updateNodeValue('fault', `backup-${i}`, 'Standby'); // Return standby text
+                                    break; // Only failback one backup at a time.
+                                }
+                            }
+                        } else { // This is for restoring a failed backup node
+                            state.ft.backupNodes[index] = true;
+                            updateNodeValue('fault', `backup-${index}`, 'Standby');
+                            logToFault(`Backup node ${index} restored by click.`);
+                        }
+                        updateActiveNodesCount();
+                    }
+                });
+            });
+            
+            logToFault('Fault tolerance system initialized');
+            updateActiveNodesCount();
+        }
+
+        function sendFaultRequest() {
+            state.stats.ftRequests++;
+            updateStats();
+            state.ft.requestCounter++;
+            const reqNum = state.ft.requestCounter;
+
+            animateNodeActivation('fault', 'lb');
+            logToFault(`Request #${reqNum} received by load balancer`);
+            
+            let targetNodeIndex = state.ft.primaryNodes.findIndex(status => status === true);
+            
+            if (targetNodeIndex !== -1) {
+                
+                const targetId = `primary-${targetNodeIndex}`;
+                setTimeout(() => {
+                    logToFault(`Routing request #${reqNum} to Primary ${targetNodeIndex}`);
+                    animatePacket('fault', 'lb', targetId, {
+                        content: 'Req',
+                        onArrival: () => logToFault(`Primary ${targetNodeIndex} processed request #${reqNum}`)
+                    });
+                }, 500 / state.animationSpeed);
+            } else {
+                
+                let backupTargetIndex = state.ft.backupNodes.findIndex(status => status === true);
+                if (backupTargetIndex !== -1) {
+                    const targetId = `backup-${backupTargetIndex}`;
+                    setTimeout(() => {
+                        logToFault(`No active primary nodes. Routing #${reqNum} to Backup ${backupTargetIndex}`);
+                        animatePacket('fault', 'lb', targetId, {
+                            content: 'Req',
+                            onArrival: () => {
+                               
+                                const backupNodeEl = document.getElementById(`node-fault-backup-${backupTargetIndex}`);
+                                if (backupNodeEl) {
+                                    backupNodeEl.classList.remove('backup');
+                                }
+                                
+                                updateNodeValue('fault', `backup-${backupTargetIndex}`, 'Active');
+                                logToFault(`Backup ${backupTargetIndex} is now ACTIVE and processed request #${reqNum}`);
+                            }
+                        });
+                    }, 500 / state.animationSpeed);
+                } else {
+                    // All nodes failed
+                    setTimeout(() => {
+                        logToFault(`CRITICAL: No active nodes available. Request #${reqNum} failed!`);
+                    }, 500 / state.animationSpeed);
+                }
+            }
+        }
+
+        function startAutoRequest() {
+            if (state.ft.autoRequestInterval) return;
+            state.ft.autoRequestInterval = setInterval(sendFaultRequest, 2000 / state.animationSpeed);
+            logToFault('Auto-request mode started');
+        }
+
+        function stopAutoRequest() {
+            if (state.ft.autoRequestInterval) {
+                clearInterval(state.ft.autoRequestInterval);
+                state.ft.autoRequestInterval = null;
+                logToFault('Auto-request mode stopped');
+            }
+        }
+
+        function failRandomNode() {
+            const activePrimaries = state.ft.primaryNodes.map((s, i) => s ? i : -1).filter(i => i !== -1);
+            const activeBackups = state.ft.backupNodes.map((s, i) => s ? i : -1).filter(i => i !== -1);
+            
+            if (activePrimaries.length === 0 && activeBackups.length === 0) {
+                logToFault("All nodes have already failed.");
+                return;
+            }
+
+            const failPrimary = Math.random() > 0.4 && activePrimaries.length > 0;
+            
+            if (failPrimary) {
+                const indexToFail = activePrimaries[Math.floor(Math.random() * activePrimaries.length)];
+                state.ft.primaryNodes[indexToFail] = false;
+                document.getElementById(`node-fault-primary-${indexToFail}`).classList.add('failed');
+                updateNodeValue('fault', `primary-${indexToFail}`, 'Failed');
+                logToFault(`Primary node ${indexToFail} has failed!`);
+            } else if (activeBackups.length > 0) {
+                const indexToFail = activeBackups[Math.floor(Math.random() * activeBackups.length)];
+                state.ft.backupNodes[indexToFail] = false;
+                document.getElementById(`node-fault-backup-${indexToFail}`).classList.add('failed');
+                updateNodeValue('fault', `backup-${indexToFail}`, 'Failed');
+                logToFault(`Backup node ${indexToFail} has failed!`);
+            } else {
+                
+                failRandomNode();
+                return;
+            }
+            state.stats.ftFailures++;
+            updateStats();
+            updateActiveNodesCount();
+        }
+
+        function resetFaultTolerance() {
+            stopAutoRequest();
+            state.ft = { primaryNodes: [true, true, true], backupNodes: [true, true], autoRequestInterval: null, requestCounter: 0 };
+            state.stats.ftRequests = 0;
+            state.stats.ftFailures = 0;
+            
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`node-fault-primary-${i}`).classList.remove('failed');
+                updateNodeValue('fault', `primary-${i}`, 'Active');
+            }
+            for (let i = 0; i < 2; i++) {
+                const backupNodeEl = document.getElementById(`node-fault-backup-${i}`);
+                if (backupNodeEl) {
+                    backupNodeEl.classList.remove('failed');
+                    backupNodeEl.classList.add('backup');
+                }
+                updateNodeValue('fault', `backup-${i}`, 'Standby');
+            }
+            
+            logToFault('Fault tolerance system has been reset');
+            updateStats();
+            updateActiveNodesCount();
+        }
+
+        function updateActiveNodesCount() {
+            const activePrimaries = state.ft.primaryNodes.filter(Boolean).length;
+            const activeBackups = state.ft.backupNodes.filter(Boolean).length;
+            
+            const ftActiveEl = document.getElementById('ft-active');
+            const ftBackupsEl = document.getElementById('ft-backups');
+
+            if(ftActiveEl) ftActiveEl.textContent = activePrimaries;
+            if(ftBackupsEl) ftBackupsEl.textContent = activeBackups;
+        }
+
+        function logToFault(message) {
+            const log = document.getElementById('fault-log');
+            if (!log) return;
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div class="log-entry"><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+    </script>
+</body>
+</html>
