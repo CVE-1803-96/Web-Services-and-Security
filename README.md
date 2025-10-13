@@ -208,4 +208,4 @@ Feel free to fork, improve, and contribute to this module. Pull requests are wel
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the GNU License.
