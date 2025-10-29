@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TLS Protocol. Visualization and Analysis</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#081023; --panel:#0f1724; --muted:#98a0b0; --accent:#6af14a; --accent-2:#3fb0ff;
+      --card:#0c1a2b; --glass:rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+    html,body{height:100%;}
+    body{margin:0;background:linear-gradient(180deg,#041026 0%, #07102a 60%);color:#e6eef8}
+    header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);backdrop-filter: blur(6px);position:sticky;top:0;border-bottom:1px solid rgba(255,255,255,0.03);z-index: 100;}
+    .brand{display:flex;gap:12px;align-items:center}
+    .brand i{color:var(--accent);font-size:22px}
+    .brand h1{font-size:16px;margin:0;color:var(--accent);letter-spacing:0.6px}
+    .brand .university{font-size:12px;color:var(--muted);margin-top:2px}
+    .controls{display:flex;gap:8px;align-items:center}
+    button,select,input{background:var(--card);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px 12px;border-radius:8px}
+    button.primary{background:linear-gradient(90deg,var(--accent),#8cfb7a);color:#001;padding:10px 14px;font-weight:600}
+    main{max-width:1200px;margin:22px auto;padding:0 20px;display:grid;grid-template-columns:1fr 360px;gap:18px}
+
+    /* Left viewport */
+    .viz{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);min-height:980px;position:relative}
+    .stage{height:740px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);position:relative;padding:22px}
+    /* client/server boxes */
+    .endpoint{position:absolute;top:46px;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .client{left:26px}
+    .server{right:26px}
+    .ep-card{width:160px;padding:12px;border-radius:10px;background:var(--glass);border:1px solid rgba(255,255,255,0.03);text-align:center}
+    .ep-card .icon{font-size:26px}
+    .lane{position:absolute;left:240px;right:240px;top:150px;height:0;border-top:2px dashed rgba(255,255,255,0.04);}
+    .midline{position:absolute;left:50%;top:88px;transform:translateX(-50%);height:620px;width:4px;background:linear-gradient(180deg,var(--accent),var(--accent-2));border-radius:6px;opacity:0.07}
+
+    /* packet visuals */
+    .packet{position:absolute;padding:10px 14px;border-radius:20px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,0.5);display:flex;gap:10px;align-items:center;white-space:nowrap}
+    .p-tcp{background:rgba(63,176,255,0.15);border:1px solid rgba(63,176,255,0.18);color:var(--accent-2)}
+    .p-hand{background:rgba(110,255,120,0.09);border:1px solid rgba(110,255,120,0.14);color:var(--accent)}
+    .p-enc{background:rgba(83,211,153,0.06);border:1px solid rgba(83,211,153,0.12);color:#80ffd1}
+
+    /* path lines */
+    .path{position:absolute;height:6px;top:200px;left:260px;right:260px;background:transparent}
+    .path::before{content:'';position:absolute;left:0;right:0;top:50%;height:3px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.06));transform:translateY(-50%);border-radius:3px}
+
+    /* animation keyframes (we'll set durations dynamically via JS) */
+    @keyframes toServer{
+      0%{transform:translateX(0);opacity:0}
+      10%{opacity:1}
+      80%{opacity:1}
+      100%{transform:translateX(calc(100vw - 400px));opacity:0}
+    }
+    @keyframes toClient{
+      0%{transform:translateX(0);opacity:0}
+      10%{opacity:1}
+      80%{opacity:1}
+      100%{transform:translateX(calc(-100vw + 400px));opacity:0}
+    }
+
+    /* timeline list */
+    .timeline{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+    .step{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02);cursor:pointer}
+    .step.active{background:linear-gradient(90deg, rgba(106,241,74,0.06), rgba(63,176,255,0.03));border-color:rgba(106,241,74,0.10)}
+    .step .badge{min-width:86px;text-align:center;padding:6px 10px;border-radius:8px;font-weight:700}
+    .badge.tcp{background:rgba(63,176,255,0.06);color:var(--accent-2)}
+    .badge.hand{background:rgba(110,255,120,0.06);color:var(--accent)}
+    .badge.enc{background:rgba(83,211,153,0.06);color:#80ffd1}
+
+    /* right column */
+    .right{display:flex;flex-direction:column;gap:12px}
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+    .log{height:300px;overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:13px;background:rgba(2,6,23,0.6);padding:10px;border-radius:8px}
+    .stats{display:flex;gap:8px}
+    .stat{flex:1;padding:10px;border-radius:8px;background:linear-gradient(90deg, rgba(255,255,255,0.01), transparent);text-align:center}
+    .stat .num{font-weight:800;font-size:18px;color:var(--accent)}
+    .legend{display:flex;gap:8px;flex-wrap:wrap}
+    .legend .l{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02)}
+
+    /* tooltip */
+    .tooltip{position:absolute;background:#031428;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);font-size:13px;color:var(--muted)}
+
+    /* responsive */
+    @media (max-width:980px){main{grid-template-columns:1fr;padding:12px} .server,.client{display:none}.right{order:2}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <i class="fas fa-lock"></i>
+      <div>
+        <h1>TLS Visualizer — Improved</h1>
+        <div class="university">Djillali Liabes University | timeline + interactive playback</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="primary" id="playBtn"><i class="fas fa-play"></i> Run</button>
+      <button id="pauseBtn"><i class="fas fa-pause"></i> Pause</button>
+      <button id="stepBack"><i class="fas fa-step-backward"></i></button>
+      <button id="stepNext"><i class="fas fa-step-forward"></i></button>
+      <label style="color:var(--muted);font-size:13px">Speed</label>
+      <select id="speedSel"><option value="1">1x</option><option value="1.5">1.5x</option><option value="2">2x</option><option value="3">3x</option></select>
+    </div>
+  </header>
+
+  <main>
+    <section class="viz">
+      <div class="stage" id="stage">
+        <div class="client endpoint" style="left:20px;top:30px">
+          <div class="ep-card">
+            <div class="icon"><i class="fas fa-desktop"></i></div>
+            <div style="font-weight:700;margin-top:6px">Client</div>
+            <div style="font-size:12px;color:var(--muted)">192.0.2.10</div>
+          </div>
+        </div>
+
+        <div class="server endpoint" style="right:20px;top:30px">
+          <div class="ep-card">
+            <div class="icon"><i class="fas fa-server"></i></div>
+            <div style="font-weight:700;margin-top:6px">Server</div>
+            <div style="font-size:12px;color:var(--muted)">198.51.100.5</div>
+          </div>
+        </div>
+
+        <div class="midline"></div>
+        <div class="lane"></div>
+        <div class="path"></div>
+
+        <!-- Packets placeholders (hidden until animated) -->
+        <div class="packet p-tcp" id="pkt-syn" style="left:40px;top:180px;display:none">SYN</div>
+        <div class="packet p-tcp" id="pkt-synack" style="right:40px;top:220px;display:none">SYN-ACK</div>
+        <div class="packet p-tcp" id="pkt-ack" style="left:40px;top:260px;display:none">ACK</div>
+
+        <div class="packet p-hand" id="pkt-clienthello" style="left:40px;top:310px;display:none">ClientHello</div>
+        <div class="packet p-hand" id="pkt-serverhello" style="right:40px;top:350px;display:none">ServerHello</div>
+        <div class="packet p-hand" id="pkt-cert" style="right:40px;top:390px;display:none">Certificate</div>
+        <div class="packet p-hand" id="pkt-serverhello-done" style="right:40px;top:430px;display:none">ServerHelloDone</div>
+
+        <div class="packet p-hand" id="pkt-clientkey" style="left:40px;top:480px;display:none">ClientKeyExchange</div>
+        <div class="packet p-hand" id="pkt-ccs-client" style="left:40px;top:520px;display:none">ChangeCipherSpec</div>
+        <div class="packet p-enc" id="pkt-finished-client" style="left:40px;top:560px;display:none">Finished</div>
+        <div class="packet p-enc" id="pkt-ccs-server" style="right:40px;top:600px;display:none">ChangeCipherSpec</div>
+        <div class="packet p-enc" id="pkt-finished-server" style="right:40px;top:640px;display:none">Finished</div>
+        
+        <div class="packet p-enc" id="pkt-application" style="left:40px;top:680px;display:none">Application Data</div>
+
+      </div>
+
+      <div class="timeline" id="timeline">
+        <!-- Steps will be populated by JS -->
+      </div>
+
+    </section>
+
+    <aside class="right">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong>Stats</strong><span style="font-size:12px;color:var(--muted)">RTT: <span id="stat-rtt">0</span></span></div>
+        <div class="stats">
+          <div class="stat"><div class="num" id="st-steps">0</div><div style="font-size:12px;color:var(--muted)">Steps</div></div>
+          <div class="stat"><div class="num" id="st-phase">-</div><div style="font-size:12px;color:var(--muted)">Phase</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><strong>Legend</strong></div>
+        <div class="legend">
+          <div class="l"><span class="badge tcp">TCP HANDSHAKE</span><div style="font-size:13px;color:var(--muted)">Transport</div></div>
+          <div class="l"><span class="badge hand">CERTIFICATE CHECKING</span><div style="font-size:13px;color:var(--muted)">Negotiation</div></div>
+          <div class="l"><span class="badge enc">KEY EXCHANGE</span><div style="font-size:13px;color:var(--muted)">Secure</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <strong>Handshake Log</strong>
+        <div class="log" id="log"></div>
+      </div>
+
+      <div class="panel">
+        <strong>Details</strong>
+        <div id="details" style="font-size:13px;color:var(--muted);margin-top:8px">Click a step in the timeline to view details.</div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // Improved interaction: steps, better animations, play/pause/step
+    const steps = [
+      { id:'pkt-syn', label:'TCP: SYN', type:'TCP HANDSHAKE', side:'c', detail:'Client sends SYN to open TCP connection', rtt:0 },
+      { id:'pkt-synack', label:'TCP: SYN-ACK', type:'TCP HANDSHAKE', side:'s', detail:'Server responds with SYN-ACK', rtt:0 },
+      { id:'pkt-ack', label:'TCP: ACK', type:'TCP HANDSHAKE', side:'c', detail:'Client ACKs, TCP established', rtt:1 },
+
+      { id:'pkt-clienthello', label:'ClientHello', type:'CERTIFICATE Checking', side:'c', detail:'Client advertises supported TLS versions and ciphers', rtt:1 },
+      { id:'pkt-serverhello', label:'ServerHello', type:'CERTIFICATE Checking', side:'s', detail:'Server selects cipher and returns ServerHello', rtt:1 },
+      { id:'pkt-cert', label:'Certificate', type:'CERTIFICATE Checking', side:'s', detail:'Server certificate chain is sent', rtt:1 },
+      { id:'pkt-serverhello-done', label:'ServerHelloDone', type:'CERTIFICATE Checking', side:'s', detail:'Server finished initial handshake messages', rtt:1 },
+
+      { id:'pkt-clientkey', label:'ClientKeyExchange', type:'KEY EXCHANGE', side:'c', detail:'Client sends encrypted pre-master secret', rtt:2 },
+      { id:'pkt-ccs-client', label:'ChangeCipherSpec (C)', type:'KEY EXCHANGE', side:'c', detail:'Client switches to encrypted mode', rtt:2 },
+      { id:'pkt-finished-client', label:'Finished (C)', type:'KEY EXCHANGE', side:'c', detail:'Client verifies handshake with Finished message', rtt:2 },
+      { id:'pkt-ccs-server', label:'ChangeCipherSpec (S)', type:'KEY EXCHANGE', side:'s', detail:'Server switches to encrypted mode', rtt:3 },
+      { id:'pkt-finished-server', label:'Finished (S)', type:'KEY EXCHANGE', side:'s', detail:'Server verifies handshake with Finished message', rtt:3 },
+
+      { id:'pkt-application', label:'Application Data', type:'DATA TRANSMISSION', side:'c', detail:'Encrypted HTTP request over the secure channel', rtt:3 }
+    ];
+
+    // create timeline items
+    const timeline = document.getElementById('timeline');
+    steps.forEach((s, idx)=>{
+      const stepEl = document.createElement('div');
+      stepEl.className = 'step';
+      stepEl.dataset.index = idx;
+      stepEl.innerHTML = `<div class='badge ${s.type==='tcp'? 'tcp': s.type==='handshake'? 'hand':'enc'}'>${idx+1}</div><div style='flex:1'><div style='font-weight:700'>${s.label}</div><div style='font-size:13px;color:var(--muted)'>${s.detail}</div></div>`;
+      stepEl.addEventListener('click', ()=>jumpTo(idx));
+      timeline.appendChild(stepEl);
+    });
+
+    // state
+    let current = -1;
+    let playing = false;
+    let speed = 1;
+    let animTimeout = null;
+
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const stepNext = document.getElementById('stepNext');
+    const stepBack = document.getElementById('stepBack');
+    const speedSel = document.getElementById('speedSel');
+
+    playBtn.addEventListener('click', ()=>{ if(!playing){playing=true; playBtn.innerHTML='<i class="fas fa-play"></i> Running'; run();}});
+    pauseBtn.addEventListener('click', ()=>{ playing=false; playBtn.innerHTML='<i class="fas fa-play"></i> Run'; if(animTimeout) clearTimeout(animTimeout);});
+    stepNext.addEventListener('click', ()=>{ playing=false; goNext(); });
+    stepBack.addEventListener('click', ()=>{ playing=false; goBack(); });
+    speedSel.addEventListener('change', ()=>{ speed = parseFloat(speedSel.value); });
+
+    function log(msg){ const l = document.getElementById('log'); const t = new Date().toLocaleTimeString(); l.innerHTML += `<div>[${t}] ${msg}</div>`; l.scrollTop = l.scrollHeight; }
+    function setStat(key,val){ if(key==='steps') document.getElementById('st-steps').textContent = val; if(key==='phase') document.getElementById('st-phase').textContent = val; if(key==='rtt') document.getElementById('stat-rtt').textContent = val; }
+
+    function highlight(idx){ document.querySelectorAll('.step').forEach((el)=>el.classList.remove('active')); const el = document.querySelector(`.step[data-index='${idx}']`); if(el) el.classList.add('active'); }
+
+    function showDetails(idx){ const d = document.getElementById('details'); const s = steps[idx]; d.innerHTML = `<div style="font-weight:700">${s.label}</div><div style="font-size:13px;color:var(--muted);margin-top:6px">${s.detail}</div><div style="font-size:12px;color:var(--muted);margin-top:8px">RTT count: ${s.rtt}</div>`; }
+
+    function jumpTo(idx){ // jump to a specific step
+      clearAllPackets(); current = idx-1; goNext(); }
+
+    function clearAllPackets(){
+      document.querySelectorAll('.packet').forEach(p => {
+        p.style.display = 'none';
+        p.style.animation = '';
+        p.style.transform = '';
+
+        // Find the corresponding step to know its origin side
+        const step = steps.find(s => s.id === p.id);
+        if (step && step.side === 's') {
+          // Server-side packet, originates on the right
+          p.style.left = 'auto';
+          p.style.right = '40px';
+        } else {
+          // Client-side or default, originates on the left
+          p.style.right = 'auto';
+          p.style.left = '40px';
+        }
+      });
+    }
+
+    function animateElement(elId, direction='toServer', dur=2000, keepVisible=false){
+      return new Promise(resolve=>{
+        const el = document.getElementById(elId);
+        if(!el){ resolve(); return; }
+        
+        el.style.display = 'flex';
+        el.style.opacity = '0';
+        
+        const ms = Math.max(500, dur / speed);
+        if(direction==='toServer'){
+          el.style.left = '40px'; el.style.right = 'auto'; 
+          el.style.animation = `toServer ${ms}ms linear forwards`;
+        } else {
+          el.style.right = '40px'; el.style.left = 'auto';
+          el.style.animation = `toClient ${ms}ms linear forwards`;
+        }
+        
+        setTimeout(()=>{
+          el.style.animation = ''; // Remove animation property
+          el.style.transform = ''; // Remove transform from 'forwards'
+          
+          if (keepVisible) {
+            el.style.opacity = '1'; // Make sure it's visible
+            if(direction === 'toServer'){
+              el.style.left = 'auto';
+              el.style.right = '40px';
+            } else {
+              el.style.right = 'auto';
+              el.style.left = '40px';
+            }
+          } else {
+            el.style.display = 'none';
+          }
+          resolve();
+        }, ms + 60); // A bit of buffer
+      });
+    }
+
+    async function goNext(){
+      if(current + 1 >= steps.length) { 
+        log('Reached end of demo'); 
+        playing = false; 
+        playBtn.innerHTML='<i class="fas fa-play"></i> Run';
+        return; 
+      }
+      current += 1;
+      const s = steps[current];
+      highlight(current);
+      showDetails(current);
+      setStat('steps', current + 1);
+      setStat('phase', s.type.toUpperCase());
+      setStat('rtt', s.rtt);
+      log(`Step ${current + 1}: ${s.label}`);
+
+      const dir = s.side === 'c' ? 'toServer' : 'toClient';
+      const elId = s.id;
+      const keepVisible = current >= 7; // Keep packets visible for step 8 and onwards
+      const duration = 1200 + (s.type === 'tcp' ? 400 : s.type === 'handshake' ? 700 : 400);
+      
+      await animateElement(elId, dir, duration, keepVisible);
+
+      // auto-advance if playing
+      if(playing) {
+        animTimeout = setTimeout(()=>{
+          goNext();
+        }, 300 / speed);
+      }
+    }
+
+    function goBack(){ if(current <= -1) return; current -=1; if(current<0) current=-1; clearAllPackets(); highlight(Math.max(0,current)); showDetails(Math.max(0,current)); setStat('steps', Math.max(0,current+1)); }
+
+    async function run(){ playing=true; if(current === steps.length-1) { current=-1; clearAllPackets(); }
+      goNext(); // Start the first step immediately
+    }
+
+    // expose initial info
+    document.addEventListener('DOMContentLoaded', ()=>{
+      showDetails(0);
+      highlight(0);
+      setStat('steps',0);
+      setStat('phase','-');
+      setStat('rtt',0);
+      log('Visualizer ready — click Run');
+      log('Djillali Liabes University - TLS Encryption | Enhanced with Animations');
+    });
+
+  </script>
+</body>
+<footer>
+  <div style="text-align:center;padding:12px;font-size:12px;color:var(--muted);border-top:1px solid rgba(255,255,255,0.03);margin-top:22px">
+    &copy; 2025 Djillali Liabes University. Ph.D Sahraoui .M.T.A
+    <br>
+    <br>
+  </div>
+</footer>
+</html>
