@@ -1,1 +1,15 @@
-
+### Chapter 3: The REST Architectural Style
+- **3.1 What is REST? (Representational State Transfer)**
+  - Roy Fielding's Doctoral Dissertation.
+  - REST as an architectural style, not a protocol.
+- **3.2 The Six Constraints of REST**
+  - Client-Server, Stateless, Cacheable, Uniform Interface, Layered System, Code-on-Demand.
+- **3.3 RESTful Principles in Practice**
+  - Resources and URIs (Noun-based, not verbs).
+  - HTTP Methods as Actions (CRUD operations).
+  - Representations (JSON, XML).
+  - HATEOAS (Hypermedia as the Engine of Application State) - Advanced Concept.
+- **3.4 Designing a RESTful API**
+  - Best practices for URI design.
+  - Versioning strategies (URI, Headers).
+  - Filtering, Sorting, and Pagination.
